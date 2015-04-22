@@ -115,28 +115,19 @@ func sockjsHandler(session sockjs.Session) {
 		return
 	}
 
-	go func() {
-		var err error
-		for d := range deliveries {
-			fmt.Printf("--- received delivery from queue: %s\n", string(d.Body))
-			err = session.Send(string(d.Body))
-			if err != nil {
-				break
-			}
-		}
-	}()
+	go sendDeliveries(deliveries, session)
 
 	for {
 		msg, err := session.Recv()
 		if err != nil {
-			break
+			return
 		}
 		fmt.Printf("--- received message from session: %s\n", msg)
 
 		var cm ChatMessage
 		err = json.Unmarshal([]byte(msg), &cm)
 		if err != nil {
-			break
+			return
 		}
 
 		err = ch.Publish(
@@ -153,6 +144,16 @@ func sockjsHandler(session sockjs.Session) {
 				Priority:        0,              // 0-9
 			},
 		)
+		if err != nil {
+			return
+		}
+	}
+}
+
+func sendDeliveries(deliveries <-chan amqp.Delivery, session sockjs.Session) {
+	for d := range deliveries {
+		fmt.Printf("--- received delivery from queue: %s\n", string(d.Body))
+		err := session.Send(string(d.Body))
 		if err != nil {
 			break
 		}
