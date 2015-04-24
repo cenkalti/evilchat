@@ -1,13 +1,6 @@
-angular.module('x', [])
-    .controller('XController', function($scope, sockjs) {
+angular.module('main', [])
+    .controller('MainController', function($scope, sockjs) {
         $scope.name = null;
-        $scope.login = function() {
-            $scope.name = prompt("Enter your name:");
-            sockjs.send(JSON.stringify({
-                type: "login",
-                name: $scope.name
-            }));
-        }
         $scope.contacts = [{
             name: "cenk"
         }, {
@@ -16,40 +9,52 @@ angular.module('x', [])
             name: "ismigül"
         }];
         $scope.windows = [{
-            from: "cenk",
             to: "cenk",
-            messages: []
         }];
+        $scope.login = function() {
+            $scope.name = prompt("Enter your name:");
+            sockjs.send(JSON.stringify({
+                type: "login",
+                name: $scope.name
+            }));
+        }
         $scope.newWindow = function(to) {
             $scope.windows.push({
-                from: "cenk",
-                to: "cenk",
-                messages: [{
-                    body: "asdf"
-                }, {
-                    body: "qwerty"
-                }]
+                to: to
             });
         }
-
-        // this.addContact = function() {
-        //   this.list.push({???});
-        // };
-
-        // this.archive = function() {
-        //   var oldTodos = this.list;
-        //   this.list = [];
-        //   angular.forEach(oldTodos, function(todo) {
-        //     if (!todo.done) this.list.push(todo);
-        //   });
-        // };
     })
     .controller('WindowController', function($scope, sockjs) {
-        $scope.messages = [{
-            body: "asdf"
-        }, {
-            body: "qwerty"
-        }];
+        $scope.to = $scope.window.to;
+        $scope.text = "";
+        $scope.messages = [];
+        $scope.send = function() {
+            var text = $scope.text;
+            $scope.text = "";
+            $scope.messages.push({
+                body: text
+            });
+            sockjs.send(JSON.stringify({
+                type: "chat",
+                from: $scope.name,
+                to: $scope.to,
+                body: text
+            }));
+        };
+    })
+    .directive('enter', function() {
+        return {
+            link: function(scope, element, attrs) {
+                element.bind("keydown keypress", function(event) {
+                    if (event.which === 13) {
+                        scope.$apply(function() {
+                            scope.$eval(attrs.enter);
+                        });
+                        event.preventDefault();
+                    }
+                });
+            }
+        };
     })
     .factory('sockjs', function() {
         var sock = new SockJS('/sockjs/sock');
@@ -63,34 +68,4 @@ angular.module('x', [])
             console.log('closed sockjs session');
         };
         return sock;
-    })
-    .directive('x-window', function() {
-        return {
-            template: 'Name: Address:'
-        };
     });
-
-
-// function login () {
-//     name = prompt("Enter your name:");
-//     sock.send(name);
-// }
-
-// function send (el) {
-//     el = $(el);
-//     console.log("sending message", el.val());
-//     sock.send(JSON.stringify({
-//         from: name,
-//         to: el.data('to'),
-//         body: el.val()
-//     }));
-//     el.val('');
-// }
-
-// $(function () {
-//     $('.input-send').keypress(function () {
-//         if(event.keyCode == 13) { // enter key
-//             send(this);
-//         }
-//     });
-// });
