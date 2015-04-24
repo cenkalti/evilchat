@@ -34,6 +34,14 @@ angular.module('main', [])
             $scope.name = localStorage.name;
             $scope.loggedIn = true;
         }
+        $scope.$on("chatId", function(event, message) {
+            $scope.$apply(function() {
+                $scope.windows.push({
+                    id: message.id,
+                    peer: message.from
+                });
+            })
+        });
     })
     .controller('WindowController', function($scope, sock) {
         $scope.id = $scope.window.id;
@@ -94,6 +102,7 @@ angular.module('main', [])
                 console.log('received message', message);
                 switch (message.type) {
                     case "chat":
+                        $rootScope.$broadcast('chatId', message);
                         $rootScope.$broadcast('chat.' + message.id, message);
                         break;
                     default:
