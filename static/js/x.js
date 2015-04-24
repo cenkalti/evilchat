@@ -9,9 +9,7 @@ angular.module('main', [])
         }, {
             name: "ismigül"
         }];
-        $scope.windows = [{
-            to: "cenk",
-        }];
+        $scope.windows = [];
         $scope.login = function() {
             $scope.name = prompt("Enter your name:");
             localStorage.name = $scope.name;
@@ -53,6 +51,12 @@ angular.module('main', [])
                 body: text
             }));
         };
+        $scope.$on("chat." + $scope.to, function(event, message) {
+            console.log("message", message);
+            $scope.$apply(function() {
+                $scope.messages.push(message);
+            })
+        });
     })
     .directive('enter', function() {
         return function(scope, element, attrs) {
@@ -66,7 +70,7 @@ angular.module('main', [])
             });
         }
     })
-    .factory('sock', function() {
+    .factory('sock', function($rootScope) {
         var sock = null;
         var retryInterval = null;
 
@@ -83,7 +87,15 @@ angular.module('main', [])
                 }
             };
             sock.onmessage = function(e) {
-                console.log('received message', e.data);
+                var data = JSON.parse(e.data);
+                console.log('received message', data);
+                switch (data.type) {
+                    case "chat":
+                        $rootScope.$broadcast('chat.' + data.from, data);
+                        break;
+                    default:
+                        console.log("unknown message type", data.type);
+                }
             };
             sock.onclose = function() {
                 sock = null;

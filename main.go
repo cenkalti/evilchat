@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -83,9 +84,13 @@ func sockjsHandler(session sockjs.Session) {
 		}
 	}()
 
+	var ch *amqp.Channel
+	var loggedIn bool
+
 	for {
 		// Read a single message from socket.
-		sockjsMessage, err := session.Recv()
+		var sockjsMessage string
+		sockjsMessage, err = session.Recv()
 		if err != nil {
 			return
 		}
@@ -113,6 +118,7 @@ func sockjsHandler(session sockjs.Session) {
 		case TypeChat:
 			body = &chatMessage
 		default:
+			err = fmt.Errorf("unknown message type: %s", message.Type)
 			return
 		}
 		err = json.Unmarshal(socksjMessageBytes, body)
@@ -121,15 +127,14 @@ func sockjsHandler(session sockjs.Session) {
 		}
 
 		// If user is not logged in yet, do not process messages other that login.
-		var loggedIn bool
 		if loggedIn && message.Type == TypeLogin {
+			err = errors.New("duplicate login message")
 			return
 		}
 		if !loggedIn && message.Type != TypeLogin {
+			err = errors.New("must send login message first")
 			return
 		}
-
-		var ch *amqp.Channel
 
 		switch message.Type {
 		case TypeLogin:
@@ -177,18 +182,16 @@ func sockjsHandler(session sockjs.Session) {
 
 			go sendDeliveries(deliveries, session)
 		case TypeChat:
+			fmt.Printf("--- sending message: %s\n", sockjsMessage)
 			err = ch.Publish(
 				messagesExchange, // publish to an exchange
 				chatMessage.To,   // routing to 0 or more queues
 				false,            // mandatory
 				false,            // immediate
 				amqp.Publishing{
-					Headers:         amqp.Table{},
-					ContentType:     "application/json",
-					ContentEncoding: "",
-					Body:            []byte(sockjsMessage),
-					DeliveryMode:    amqp.Transient, // 1=non-persistent, 2=persistent
-					Priority:        0,              // 0-9
+					ContentType:  "application/json",
+					Body:         []byte(sockjsMessage),
+					DeliveryMode: amqp.Transient, // 1=non-persistent, 2=persistent
 				},
 			)
 			if err != nil {
