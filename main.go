@@ -70,9 +70,10 @@ type LoginMessage struct {
 }
 
 type ChatMessage struct {
-	From string
-	To   string
-	Body string
+	From   string
+	To     string
+	Body   string
+	Thread string
 }
 
 func sockjsHandler(session sockjs.Session) {

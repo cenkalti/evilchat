@@ -27,39 +27,39 @@ angular.module('main', [])
         }
         $scope.newWindow = function(peer) {
             var w = {
-                id: guid(),
+                thread: guid(),
                 peer: peer
             };
             $scope.windows.push(w);
-            $scope.windowIds[w.id] = w;
+            $scope.windowIds[w.thread] = w;
         }
-        $scope.closeWindow = function(id) {
-            var w = $scope.windowIds[id];
+        $scope.closeWindow = function(thread) {
+            var w = $scope.windowIds[thread];
             if (!w) return;
             var i = $scope.windows.indexOf(w);
             if (i == -1) return;
             $scope.windows.splice(i, 1);
-            delete $scope.windowIds[id];
+            delete $scope.windowIds[thread];
         };
         if (localStorage.name) {
             $scope.name = localStorage.name;
             $scope.loggedIn = true;
         }
-        $scope.$on("chatId", function(event, message) {
+        $scope.$on("thread", function(event, message) {
             $scope.$apply(function() {
-                if (!$scope.windowIds[message.id]) {
+                if (!$scope.windowIds[message.thread]) {
                     var w = {
-                        id: message.id,
+                        thread: message.thread,
                         peer: message.from
                     };
                     $scope.windows.push(w);
-                    $scope.windowIds[w.id] = w;
+                    $scope.windowIds[w.thread] = w;
                 }
             })
         });
     })
     .controller('WindowController', function($scope, sock) {
-        $scope.id = $scope.window.id;
+        $scope.thread = $scope.window.thread;
         $scope.peer = $scope.window.peer;
         $scope.text = "";
         $scope.messages = [];
@@ -71,13 +71,13 @@ angular.module('main', [])
             });
             sock.get().send(JSON.stringify({
                 type: "chat",
-                id: $scope.id,
+                thread: $scope.thread,
                 from: $scope.name,
                 to: $scope.peer,
                 body: text
             }));
         };
-        $scope.$on("chat." + $scope.id, function(event, message) {
+        $scope.$on("chat." + $scope.thread, function(event, message) {
             console.log("message", message);
             $scope.$apply(function() {
                 $scope.messages.push(message);
@@ -117,8 +117,8 @@ angular.module('main', [])
                 console.log('received message', message);
                 switch (message.type) {
                     case "chat":
-                        $rootScope.$broadcast('chatId', message);
-                        $rootScope.$broadcast('chat.' + message.id, message);
+                        $rootScope.$broadcast('thread', message);
+                        $rootScope.$broadcast('chat.' + message.thread, message);
                         break;
                     default:
                         console.log("unknown message type", message.type);
