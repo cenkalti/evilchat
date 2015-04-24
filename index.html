@@ -31,8 +31,8 @@
             </div>
             <div id="navbar" class="navbar-collapse collapse">
                 <ul class="nav navbar-nav navbar-right">
-                    <li><a href="javascript:;" ng-click="login()">Login</a></li>
-                    <li><a href="javascript:;">Logout</a></li>
+                    <li ng-hide="loggedIn"><a href="javascript:;" ng-click="login()">Login</a></li>
+                    <li ng-show="loggedIn"><a href="javascript:;" ng-click="logout()">Logout</a></li>
                 </ul>
             </div>
         </div>
