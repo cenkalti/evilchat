@@ -33,6 +33,14 @@ angular.module('main', [])
             $scope.windows.push(w);
             $scope.windowIds[w.id] = w;
         }
+        $scope.closeWindow = function(id) {
+            var w = $scope.windowIds[id];
+            if (!w) return;
+            var i = $scope.windows.indexOf(w);
+            if (i == -1) return;
+            $scope.windows.splice(i, 1);
+            delete $scope.windowIds[id];
+        };
         if (localStorage.name) {
             $scope.name = localStorage.name;
             $scope.loggedIn = true;

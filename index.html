@@ -46,6 +46,7 @@
                 <div class="row">
                     <div class="col-xs-6 col-sm-3" ng-repeat="window in windows">
                         <div class="chat-box" ng-controller="WindowController">
+                        <button ng-click="closeWindow(id)" type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
                             <h4>{{peer}}</h4>
                             <ul class="messages">
                                 <li ng-repeat="message in messages">
