@@ -10,6 +10,7 @@ angular.module('main', [])
             name: "ismigül"
         }];
         $scope.windows = [];
+        $scope.windowIds = {};
         $scope.login = function() {
             $scope.name = prompt("Enter your name:");
             localStorage.name = $scope.name;
@@ -25,10 +26,12 @@ angular.module('main', [])
             delete localStorage.name;
         }
         $scope.newWindow = function(peer) {
-            $scope.windows.push({
+            var w = {
                 id: guid(),
                 peer: peer
-            });
+            };
+            $scope.windows.push(w);
+            $scope.windowIds[w.id] = w;
         }
         if (localStorage.name) {
             $scope.name = localStorage.name;
@@ -36,10 +39,14 @@ angular.module('main', [])
         }
         $scope.$on("chatId", function(event, message) {
             $scope.$apply(function() {
-                $scope.windows.push({
-                    id: message.id,
-                    peer: message.from
-                });
+                if (!$scope.windowIds[message.id]) {
+                    var w = {
+                        id: message.id,
+                        peer: message.from
+                    };
+                    $scope.windows.push(w);
+                    $scope.windowIds[w.id] = w;
+                }
             })
         });
     })
