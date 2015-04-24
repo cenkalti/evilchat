@@ -17,6 +17,8 @@ var conn *amqp.Connection
 
 func initAMQP() {
 	var err error
+	// TODO use redialer
+	// TODO get URI from env var
 	conn, err = amqp.Dial("amqp://guest:guest@localhost:5672/")
 	if err != nil {
 		log.Fatal(err)
@@ -55,6 +57,17 @@ func main() {
 	}
 }
 
+type MessageType string
+
+const (
+	TypeLogin MessageType = "login"
+	TypeChat              = "chat"
+)
+
+type LoginMessage struct {
+	Name string
+}
+
 type ChatMessage struct {
 	From string
 	To   string
@@ -70,82 +83,119 @@ func sockjsHandler(session sockjs.Session) {
 		}
 	}()
 
-	userName, err := session.Recv()
-	if err != nil {
-		return
-	}
-
-	ch, err := conn.Channel()
-	if err != nil {
-		return
-	}
-	defer ch.Close()
-
-	queue, err := ch.QueueDeclare(
-		"",    // name of the queue
-		false, // durable
-		true,  // delete when usused
-		true,  // exclusive
-		false, // noWait
-		nil,   // arguments
-	)
-	if err != nil {
-		return
-	}
-	err = ch.QueueBind(
-		queue.Name,       // name of the queue
-		userName,         // bindingKey
-		messagesExchange, // sourceExchange
-		false,            // noWait
-		nil,              // arguments
-	)
-	if err != nil {
-		return
-	}
-	deliveries, err := ch.Consume(
-		queue.Name, // name
-		"",         // consumerTag,
-		false,      // noAck
-		false,      // exclusive
-		false,      // noLocal
-		false,      // noWait
-		nil,        // arguments
-	)
-	if err != nil {
-		return
-	}
-
-	go sendDeliveries(deliveries, session)
-
 	for {
-		msg, err := session.Recv()
+		// Read a single message from socket.
+		sockjsMessage, err := session.Recv()
 		if err != nil {
 			return
 		}
-		fmt.Printf("--- received message from session: %s\n", msg)
+		fmt.Printf("--- received message: %s\n", sockjsMessage)
+		socksjMessageBytes := []byte(sockjsMessage)
 
-		var cm ChatMessage
-		err = json.Unmarshal([]byte(msg), &cm)
+		// Determine message type.
+		var message struct {
+			Type MessageType
+		}
+		err = json.Unmarshal(socksjMessageBytes, &message)
 		if err != nil {
 			return
 		}
 
-		err = ch.Publish(
-			messagesExchange, // publish to an exchange
-			cm.To,            // routing to 0 or more queues
-			false,            // mandatory
-			false,            // immediate
-			amqp.Publishing{
-				Headers:         amqp.Table{},
-				ContentType:     "application/json",
-				ContentEncoding: "",
-				Body:            []byte(msg),
-				DeliveryMode:    amqp.Transient, // 1=non-persistent, 2=persistent
-				Priority:        0,              // 0-9
-			},
+		// Unmarshal JSON into correct type.
+		var (
+			loginMessage LoginMessage
+			chatMessage  ChatMessage
 		)
+		var body interface{}
+		switch message.Type {
+		case TypeLogin:
+			body = &loginMessage
+		case TypeChat:
+			body = &chatMessage
+		default:
+			return
+		}
+		err = json.Unmarshal(socksjMessageBytes, body)
 		if err != nil {
 			return
+		}
+
+		// If user is not logged in yet, do not process messages other that login.
+		var loggedIn bool
+		if loggedIn && message.Type == TypeLogin {
+			return
+		}
+		if !loggedIn && message.Type != TypeLogin {
+			return
+		}
+
+		var ch *amqp.Channel
+
+		switch message.Type {
+		case TypeLogin:
+			loggedIn = true
+
+			ch, err = conn.Channel()
+			if err != nil {
+				return
+			}
+			defer ch.Close()
+
+			queue, err := ch.QueueDeclare(
+				"",    // name of the queue
+				false, // durable
+				true,  // delete when usused
+				true,  // exclusive
+				false, // noWait
+				nil,   // arguments
+			)
+			if err != nil {
+				return
+			}
+			err = ch.QueueBind(
+				queue.Name,        // name of the queue
+				loginMessage.Name, // bindingKey
+				messagesExchange,  // sourceExchange
+				false,             // noWait
+				nil,               // arguments
+			)
+			if err != nil {
+				return
+			}
+			deliveries, err := ch.Consume(
+				queue.Name, // name
+				"",         // consumerTag,
+				false,      // noAck
+				false,      // exclusive
+				false,      // noLocal
+				false,      // noWait
+				nil,        // arguments
+			)
+			if err != nil {
+				return
+			}
+
+			go sendDeliveries(deliveries, session)
+		case TypeChat:
+			err = ch.Publish(
+				messagesExchange, // publish to an exchange
+				chatMessage.To,   // routing to 0 or more queues
+				false,            // mandatory
+				false,            // immediate
+				amqp.Publishing{
+					Headers:         amqp.Table{},
+					ContentType:     "application/json",
+					ContentEncoding: "",
+					Body:            []byte(sockjsMessage),
+					DeliveryMode:    amqp.Transient, // 1=non-persistent, 2=persistent
+					Priority:        0,              // 0-9
+				},
+			)
+			if err != nil {
+				return
+			}
+		default:
+			panic("unhandled message type: " + string(message.Type))
 		}
 	}
 }

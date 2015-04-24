@@ -11,68 +11,9 @@
       <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
       <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
     <![endif]-->
-    <script src="/static/js/jquery-1.11.2.min.js"></script>
-    <script src="/static/js/bootstrap.min.js"></script>
     <script src="/static/js/angular.min.js"></script>
     <script src="/static/js/sockjs.min.js"></script>
-    <script>
-        angular.module('x', [])
-          .controller('XController', function($scope) {
-            $scope.contacts = [
-                {name: "cenk"},
-                {name: "rauf"},
-                {name: "ismigül"}];
-
-            // this.addContact = function() {
-            //   this.list.push({???});
-            // };
-
-            // this.archive = function() {
-            //   var oldTodos = this.list;
-            //   this.list = [];
-            //   angular.forEach(oldTodos, function(todo) {
-            //     if (!todo.done) this.list.push(todo);
-            //   });
-            // };
-          });
-
-        var sock = new SockJS('/sockjs/sock');
-        sock.onopen = function() {
-            console.log('opened sockjs session');
-        };
-        sock.onmessage = function(e) {
-            console.log('received message', e.data);
-        };
-        sock.onclose = function() {
-            console.log('closed sockjs session');
-        };
-
-        var name;
-
-        function login () {
-            name = prompt("Enter your name:");
-            sock.send(name);
-        }
-
-        function send (el) {
-            el = $(el);
-            console.log("sending message", el.val());
-            sock.send(JSON.stringify({
-                from: name,
-                to: el.data('to'),
-                body: el.val()
-            }));
-            el.val('');
-        }
-
-        $(function () {
-            $('.input-send').keypress(function () {
-                if(event.keyCode == 13) { // enter key
-                    send(this);
-                }
-            });
-        });
-    </script>
+    <script src="/static/js/x.js"></script>
 </head>
 <body ng-controller="XController">
     <nav class="navbar navbar-inverse navbar-fixed-top">
@@ -88,7 +29,7 @@
         </div>
         <div id="navbar" class="navbar-collapse collapse">
           <ul class="nav navbar-nav navbar-right">
-            <li><a href="javascript:;" onclick="login()">Login</a></li>
+            <li><a href="javascript:;" ng-click="login()">Login</a></li>
             <li><a href="javascript:;">Logout</a></li>
           </ul>
         </div>
