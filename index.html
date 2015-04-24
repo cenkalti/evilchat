@@ -17,22 +17,21 @@
     <script src="/static/js/sockjs.min.js"></script>
     <script>
         angular.module('x', [])
-          .controller('ContactsController', function() {
-            var contacts = this;
-            contacts.list = [
+          .controller('XController', function($scope) {
+            $scope.contacts = [
                 {name: "cenk"},
                 {name: "rauf"},
                 {name: "ismigül"}];
 
-            // contacts.addContact = function() {
-            //   contacts.list.push({???});
+            // this.addContact = function() {
+            //   this.list.push({???});
             // };
 
-            // contacts.archive = function() {
-            //   var oldTodos = contacts.list;
-            //   contacts.list = [];
+            // this.archive = function() {
+            //   var oldTodos = this.list;
+            //   this.list = [];
             //   angular.forEach(oldTodos, function(todo) {
-            //     if (!todo.done) contacts.list.push(todo);
+            //     if (!todo.done) this.list.push(todo);
             //   });
             // };
           });
@@ -75,7 +74,7 @@
         });
     </script>
 </head>
-<body>
+<body ng-controller="XController">
     <nav class="navbar navbar-inverse navbar-fixed-top">
       <div class="container-fluid">
         <div class="navbar-header">
@@ -96,11 +95,11 @@
       </div>
     </nav>
 
-    <div class="container-fluid" ng-controller="ContactsController as contacts">
+    <div class="container-fluid">
       <div class="row">
         <div class="col-sm-3 col-md-2 sidebar">
           <ul class="nav nav-sidebar">
-            <li ng-repeat="contact in contacts.list">
+            <li ng-repeat="contact in contacts">
                 <a href="#">{{contact.name}}</a>
             </li>
           </ul>
