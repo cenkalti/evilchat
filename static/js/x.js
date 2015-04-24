@@ -24,10 +24,10 @@ angular.module('main', [])
             $scope.loggedIn = false;
             delete localStorage.name;
         }
-        $scope.newWindow = function(to) {
+        $scope.newWindow = function(peer) {
             $scope.windows.push({
                 id: guid(),
-                to: to
+                peer: peer
             });
         }
         if (localStorage.name) {
@@ -37,7 +37,7 @@ angular.module('main', [])
     })
     .controller('WindowController', function($scope, sock) {
         $scope.id = $scope.window.id;
-        $scope.to = $scope.window.to;
+        $scope.peer = $scope.window.peer;
         $scope.text = "";
         $scope.messages = [];
         $scope.send = function() {
@@ -50,7 +50,7 @@ angular.module('main', [])
                 type: "chat",
                 id: $scope.id,
                 from: $scope.name,
-                to: $scope.to,
+                to: $scope.peer,
                 body: text
             }));
         };
