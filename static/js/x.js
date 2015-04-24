@@ -26,6 +26,7 @@ angular.module('main', [])
         }
         $scope.newWindow = function(to) {
             $scope.windows.push({
+                id: guid(),
                 to: to
             });
         }
@@ -35,6 +36,7 @@ angular.module('main', [])
         }
     })
     .controller('WindowController', function($scope, sock) {
+        $scope.id = $scope.window.id;
         $scope.to = $scope.window.to;
         $scope.text = "";
         $scope.messages = [];
@@ -46,12 +48,13 @@ angular.module('main', [])
             });
             sock.get().send(JSON.stringify({
                 type: "chat",
+                id: $scope.id,
                 from: $scope.name,
                 to: $scope.to,
                 body: text
             }));
         };
-        $scope.$on("chat." + $scope.to, function(event, message) {
+        $scope.$on("chat." + $scope.id, function(event, message) {
             console.log("message", message);
             $scope.$apply(function() {
                 $scope.messages.push(message);
@@ -87,14 +90,14 @@ angular.module('main', [])
                 }
             };
             sock.onmessage = function(e) {
-                var data = JSON.parse(e.data);
-                console.log('received message', data);
-                switch (data.type) {
+                var message = JSON.parse(e.data);
+                console.log('received message', message);
+                switch (message.type) {
                     case "chat":
-                        $rootScope.$broadcast('chat.' + data.from, data);
+                        $rootScope.$broadcast('chat.' + message.id, message);
                         break;
                     default:
-                        console.log("unknown message type", data.type);
+                        console.log("unknown message type", message.type);
                 }
             };
             sock.onclose = function() {
@@ -110,3 +113,11 @@ angular.module('main', [])
             }
         };
     });
+
+function guid() {
+    function _p8(s) {
+        var p = (Math.random().toString(16) + "000000000").substr(2, 8);
+        return s ? "-" + p.substr(0, 4) + "-" + p.substr(4, 4) : p;
+    }
+    return _p8() + _p8(true) + _p8(true) + _p8();
+}
