@@ -16,8 +16,10 @@ import (
 var dev = flag.Bool("dev", false, "use development config")
 
 const (
-	chatExchange     = "chat"
-	presenceExchange = "presence"
+	chatExchange       = "chat"
+	probeExchange      = "probe"
+	probeReplyExchange = "probeReply"
+	presenceExchange   = "presence"
 )
 
 var conn *amqp.Connection
@@ -46,6 +48,32 @@ func initAMQP() {
 		false,        // internal
 		false,        // noWait
 		nil,          // arguments
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = ch.ExchangeDeclare(
+		probeExchange, // name of the exchange
+		"fanout",      // type
+		true,          // durable
+		false,         // delete when complete
+		false,         // internal
+		false,         // noWait
+		nil,           // arguments
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = ch.ExchangeDeclare(
+		probeReplyExchange, // name of the exchange
+		"direct",           // type
+		true,               // durable
+		false,              // delete when complete
+		false,              // internal
+		false,              // noWait
+		nil,                // arguments
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -83,7 +111,7 @@ func main() {
 
 	fs := http.StripPrefix("/static", http.FileServer(http.Dir("static")))
 	http.HandleFunc("/static/", func(w http.ResponseWriter, r *http.Request) { fs.ServeHTTP(w, r) })
-	http.Handle("/sockjs/", sockjs.NewHandler("/sockjs/sock", sockjs.DefaultOptions, sockjsHandler))
+	http.Handle("/sockjs/", sockjs.NewHandler("/sockjs/sock", sockjs.DefaultOptions, handleSocket))
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "index.html")
 	})
@@ -92,6 +120,8 @@ func main() {
 		log.Fatal(err)
 	}
 }
+
+// Client Message Types
 
 type MessageType string
 
@@ -114,7 +144,9 @@ type ChatMessage struct {
 }
 
 type PresenceMessage struct {
-	Status string
+	Type   MessageType    `json:"type"`
+	Name   string         `json:"name"`
+	Status PresenceStatus `json:"status"`
 }
 
 type PresenceStatus string
@@ -124,7 +156,7 @@ const (
 	StatusOffline                = "offline"
 )
 
-func sockjsHandler(session sockjs.Session) {
+func handleSocket(session sockjs.Session) {
 	var err error
 	defer func() {
 		if err != nil && err != sockjs.ErrSessionNotOpen {
@@ -195,7 +227,8 @@ func sockjsHandler(session sockjs.Session) {
 			}
 			defer ch.Close()
 
-			queue, err := ch.QueueDeclare(
+			var queue amqp.Queue
+			queue, err = ch.QueueDeclare(
 				"",    // name of the queue
 				false, // durable
 				true,  // delete when usused
@@ -207,25 +240,31 @@ func sockjsHandler(session sockjs.Session) {
 				return
 			}
 			err = ch.QueueBind(
-				queue.Name,        // name of the queue
-				loginMessage.Name, // bindingKey
-				presenceExchange,  // sourceExchange
-				false,             // noWait
-				nil,               // arguments
+				queue.Name,    // name of the queue
+				"",            // bindingKey
+				probeExchange, // sourceExchange
+				false,         // noWait
+				nil,           // arguments
 			)
 			if err != nil {
 				return
 			}
-			err = ch.Publish(
-				presenceExchange, // publish to an exchange
-				"",               // routing to 0 or more queues
-				false,            // mandatory
-				false,            // immediate
-				amqp.Publishing{
-					ContentType:  "application/json",
-					Body:         []byte(`{"type":"presence","user":"` + loginMessage.Name + `"}`),
-					DeliveryMode: amqp.Transient, // 1=non-persistent, 2=persistent
-				},
+			err = ch.QueueBind(
+				queue.Name,         // name of the queue
+				loginMessage.Name,  // bindingKey
+				probeReplyExchange, // sourceExchange
+				false,              // noWait
+				nil,                // arguments
+			)
+			if err != nil {
+				return
+			}
+			err = ch.QueueBind(
+				queue.Name,       // name of the queue
+				"",               // bindingKey
+				presenceExchange, // sourceExchange
+				false,            // noWait
+				nil,              // arguments
 			)
 			if err != nil {
 				return
@@ -240,7 +279,39 @@ func sockjsHandler(session sockjs.Session) {
 			if err != nil {
 				return
 			}
-			deliveries, err := ch.Consume(
+			err = ch.Publish(
+				presenceExchange, // exchange
+				"",               // routing key
+				false,            // mandatory
+				false,            // immediate
+				amqp.Publishing{
+					Headers: amqp.Table{
+						"name":   loginMessage.Name,
+						"status": string(StatusOnline),
+					},
+					DeliveryMode: amqp.Transient, // 1=non-persistent, 2=persistent
+				},
+			)
+			if err != nil {
+				return
+			}
+			err = ch.Publish(
+				probeExchange, // exchange
+				"",            // routing key
+				false,         // mandatory
+				false,         // immediate
+				amqp.Publishing{
+					Headers: amqp.Table{
+						"from": loginMessage.Name,
+					},
+					DeliveryMode: amqp.Transient, // 1=non-persistent, 2=persistent
+				},
+			)
+			if err != nil {
+				return
+			}
+			var deliveries <-chan amqp.Delivery
+			deliveries, err = ch.Consume(
 				queue.Name, // name
 				"",         // consumerTag,
 				false,      // noAck
@@ -253,12 +324,12 @@ func sockjsHandler(session sockjs.Session) {
 				return
 			}
 
-			go sendDeliveries(deliveries, session)
+			go handleQueue(deliveries, session, ch, loginMessage.Name)
 		case TypeChat:
 			fmt.Printf("--- sending message: %s\n", sockjsMessage)
 			err = ch.Publish(
-				chatExchange,   // publish to an exchange
-				chatMessage.To, // routing to 0 or more queues
+				chatExchange,   // exchange
+				chatMessage.To, // routing key
 				false,          // mandatory
 				false,          // immediate
 				amqp.Publishing{
@@ -276,12 +347,69 @@ func sockjsHandler(session sockjs.Session) {
 	}
 }
 
-func sendDeliveries(deliveries <-chan amqp.Delivery, session sockjs.Session) {
+func handleQueue(deliveries <-chan amqp.Delivery, session sockjs.Session, ch *amqp.Channel, name string) {
+	defer ch.Close()
+	defer ch.Publish(
+		presenceExchange, // exchange
+		"",               // routing key
+		false,            // mandatory
+		false,            // immediate
+		amqp.Publishing{
+			Headers: amqp.Table{
+				"name":   name,
+				"status": string(StatusOffline),
+			},
+			DeliveryMode: amqp.Transient, // 1=non-persistent, 2=persistent
+		},
+	)
 	for d := range deliveries {
-		fmt.Printf("--- received delivery from queue: %s\n", string(d.Body))
-		err := session.Send(string(d.Body))
-		if err != nil {
-			break
+		fmt.Printf("--- received delivery from exchange: %s\n", d.Exchange)
+		switch d.Exchange {
+		case probeExchange:
+			err := ch.Publish(
+				probeReplyExchange,         // exchange
+				d.Headers["from"].(string), // routing key
+				false, // mandatory
+				false, // immediate
+				amqp.Publishing{
+					Headers: amqp.Table{
+						"name":   name,
+						"status": string(StatusOnline),
+					},
+					DeliveryMode: amqp.Transient, // 1=non-persistent, 2=persistent
+				},
+			)
+			if err != nil {
+				log.Print(err)
+				return
+			}
+		case probeReplyExchange:
+			fallthrough
+		case presenceExchange:
+			msg := PresenceMessage{
+				Type:   TypePresence,
+				Name:   d.Headers["name"].(string),
+				Status: PresenceStatus(d.Headers["status"].(string)),
+			}
+			b, err := json.Marshal(&msg)
+			if err != nil {
+				log.Print(err)
+				return
+			}
+			err = session.Send(string(b))
+			if err != nil {
+				log.Print(err)
+				return
+			}
+		case chatExchange:
+			err := session.Send(string(d.Body))
+			if err != nil {
+				log.Print(err)
+				return
+			}
+		default:
+			panic("received message from unknown exchange: " + d.Exchange)
 		}
+		d.Ack(false)
 	}
 }

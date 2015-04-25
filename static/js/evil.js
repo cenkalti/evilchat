@@ -18,6 +18,8 @@ angular.module('main', [])
             $scope.name = null;
             $scope.loggedIn = false;
             delete localStorage.name;
+            sock.get().close();
+            $scope.contacts = {};
         }
         $scope.newWindow = function(contact) {
             var w = {
@@ -54,11 +56,19 @@ angular.module('main', [])
             })
         });
         $scope.$on("presence", function(event, message) {
-            console.log("adding", message);
             $scope.$apply(function() {
-                $scope.contacts[message.user] = {
-                    name: message.user
-                };
+                switch (message.status) {
+                    case "online":
+                        $scope.contacts[message.name] = {
+                            name: message.name
+                        };
+                        break;
+                    case "offline":
+                        delete $scope.contacts[message.name];
+                        break
+                    default:
+                        console.log("unknown presence status", message);
+                }
             });
         });
     })
