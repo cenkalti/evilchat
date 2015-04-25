@@ -64,7 +64,8 @@ angular.module('main', [])
         $scope.text = "";
         $scope.messages = [];
         $scope.send = function() {
-            var text = $scope.text;
+            var text = $scope.text.trim();
+            if (!text) return;
             $scope.text = "";
             $scope.messages.push({
                 body: text
