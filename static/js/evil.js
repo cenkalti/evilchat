@@ -19,10 +19,10 @@ angular.module('main', [])
             $scope.loggedIn = false;
             delete localStorage.name;
         }
-        $scope.newWindow = function(peer) {
+        $scope.newWindow = function(contact) {
             var w = {
                 thread: guid(),
-                peer: peer
+                contact: contact
             };
             $scope.windows.push(w);
             $scope.windowIds[w.thread] = w;
@@ -43,7 +43,9 @@ angular.module('main', [])
             $scope.$apply(function() {
                 var w = {
                     thread: message.thread,
-                    peer: message.from
+                    contact: {
+                        name: message.from
+                    }
                 };
                 if (!$scope.windowIds[message.thread]) {
                     $scope.windows.push(w);
@@ -62,7 +64,7 @@ angular.module('main', [])
     })
     .controller('WindowController', function($scope, sock) {
         $scope.thread = $scope.window.thread;
-        $scope.peer = $scope.window.peer;
+        $scope.contact = $scope.window.contact;
         $scope.text = "";
         $scope.messages = [];
         $scope.messageIds = {};
@@ -81,7 +83,7 @@ angular.module('main', [])
                 thread: $scope.thread,
                 id: message.id,
                 from: $scope.name,
-                to: $scope.peer,
+                to: $scope.contact.name,
                 body: text
             }));
         };
