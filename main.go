@@ -208,6 +208,30 @@ func sockjsHandler(session sockjs.Session) {
 			err = ch.QueueBind(
 				queue.Name,        // name of the queue
 				loginMessage.Name, // bindingKey
+				presenceExchange,  // sourceExchange
+				false,             // noWait
+				nil,               // arguments
+			)
+			if err != nil {
+				return
+			}
+			err = ch.Publish(
+				presenceExchange, // publish to an exchange
+				"",               // routing to 0 or more queues
+				false,            // mandatory
+				false,            // immediate
+				amqp.Publishing{
+					ContentType:  "application/json",
+					Body:         []byte(`{"type":"presence","user":"` + loginMessage.Name + `"}`),
+					DeliveryMode: amqp.Transient, // 1=non-persistent, 2=persistent
+				},
+			)
+			if err != nil {
+				return
+			}
+			err = ch.QueueBind(
+				queue.Name,        // name of the queue
+				loginMessage.Name, // bindingKey
 				chatExchange,      // sourceExchange
 				false,             // noWait
 				nil,               // arguments

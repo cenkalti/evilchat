@@ -2,13 +2,7 @@ angular.module('main', [])
     .controller('MainController', function($scope, sock) {
         $scope.loggedIn = false;
         $scope.name = null;
-        $scope.contacts = [{
-            name: "cenk"
-        }, {
-            name: "rauf"
-        }, {
-            name: "ismigül"
-        }];
+        $scope.contacts = {};
         $scope.windows = [];
         $scope.windowIds = {};
         $scope.login = function() {
@@ -56,6 +50,12 @@ angular.module('main', [])
                     $scope.windowIds[w.thread] = w;
                 }
             })
+        });
+        $scope.$on("presence", function(event, message) {
+            $scope.$apply(function() {
+                console.log("adding", message);
+                $scope.contacts[message.user] = {name: message.user};
+            });
         });
     })
     .controller('WindowController', function($scope, sock) {
@@ -119,6 +119,9 @@ angular.module('main', [])
                     case "chat":
                         $rootScope.$broadcast('thread', message);
                         $rootScope.$broadcast('chat.' + message.thread, message);
+                        break;
+                    case "presence":
+                        $rootScope.$broadcast('presence', message);
                         break;
                     default:
                         console.log("unknown message type", message.type);
