@@ -111,13 +111,21 @@ angular.module('main', [])
     .directive('scrollBottom', function() {
         return function(scope, element, attrs) {
             element = element[0];
-            window.messages = element;
-            element.addEventListener('DOMNodeInserted', function(event) {
-                if (event.target.tagName == "LI") {
-                    console.log("scroll height", element.scrollHeight);
-                    element.scrollTop = element.scrollHeight;
-                }
-            }, false);
+            var observer = new MutationObserver(function(mutations) {
+                mutations.forEach(function(mutation) {
+                    if (mutation.addedNodes) {
+                        for (var i = 0; i < mutation.addedNodes.length; i++) {
+                            var node = mutation.addedNodes[i];
+                            if (node.nodeName == "LI") {
+                                element.scrollTop = element.scrollHeight;
+                            }
+                        }
+                    }
+                });
+            });
+            observer.observe(element, {
+                childList: true
+            });
         }
     })
     .factory('sock', function($rootScope) {
