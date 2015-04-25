@@ -71,6 +71,7 @@ var config struct {
 }
 
 func main() {
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	flag.Parse()
 
 	err := envconfig.Process(&config, !*dev)
