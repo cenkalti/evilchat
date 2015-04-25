@@ -1,10 +1,18 @@
 {
-	"ImportPath": "bitbucket.org/cenkalti/x",
+	"ImportPath": "bitbucket.org/cenkalti/evilchat",
 	"GoVersion": "go1.4.1",
 	"Deps": [
 		{
+			"ImportPath": "github.com/cenkalti/envconfig",
+			"Rev": "a0c9c58afe16be646314224e2b435236643715c3"
+		},
+		{
 			"ImportPath": "github.com/gorilla/websocket",
 			"Rev": "ecff5aabe41f13b4cdf897e3c0c9bbccbe552a29"
+		},
+		{
+			"ImportPath": "github.com/streadway/amqp",
+			"Rev": "6a378341a305bfbc252e8a6638f16cf443221997"
 		},
 		{
 			"ImportPath": "gopkg.in/igm/sockjs-go.v2/sockjs",
