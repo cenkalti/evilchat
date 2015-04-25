@@ -26,7 +26,6 @@ var conn *amqp.Connection
 func initAMQP() {
 	var err error
 	// TODO use redialer
-	// TODO get URI from env var
 	conn, err = amqp.Dial(config.AMQP)
 	if err != nil {
 		log.Fatal(err)
