@@ -25,10 +25,13 @@ var conn *amqp.Connection
 func initAMQP() {
 	var err error
 	// TODO use redialer
+	log.Print("Connecting to AMQP...")
 	conn, err = amqp.Dial(config.AMQP)
 	if err != nil {
 		log.Fatal(err)
 	}
+	log.Print("Done.")
+
 	ch, err := conn.Channel()
 	if err != nil {
 		log.Fatal(err)
@@ -83,6 +86,7 @@ func main() {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "index.html")
 	})
+	log.Printf("Listening port %s...", config.Port)
 	if err := http.ListenAndServe(":"+config.Port, nil); err != nil {
 		log.Fatal(err)
 	}
