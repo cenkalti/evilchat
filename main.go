@@ -106,6 +106,7 @@ type LoginMessage struct {
 }
 
 type ChatMessage struct {
+	ID     string
 	From   string
 	To     string
 	Body   string

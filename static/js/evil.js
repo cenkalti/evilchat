@@ -41,20 +41,22 @@ angular.module('main', [])
         }
         $scope.$on("thread", function(event, message) {
             $scope.$apply(function() {
+                var w = {
+                    thread: message.thread,
+                    peer: message.from
+                };
                 if (!$scope.windowIds[message.thread]) {
-                    var w = {
-                        thread: message.thread,
-                        peer: message.from
-                    };
                     $scope.windows.push(w);
                     $scope.windowIds[w.thread] = w;
                 }
             })
         });
         $scope.$on("presence", function(event, message) {
+            console.log("adding", message);
             $scope.$apply(function() {
-                console.log("adding", message);
-                $scope.contacts[message.user] = {name: message.user};
+                $scope.contacts[message.user] = {
+                    name: message.user
+                };
             });
         });
     })
@@ -63,16 +65,21 @@ angular.module('main', [])
         $scope.peer = $scope.window.peer;
         $scope.text = "";
         $scope.messages = [];
+        $scope.messageIds = {};
         $scope.send = function() {
             var text = $scope.text.trim();
             if (!text) return;
             $scope.text = "";
-            $scope.messages.push({
+            var message = {
+                id: guid(),
                 body: text
-            });
+            };
+            $scope.messageIds[message.id] = message;
+            $scope.messages.push(message);
             sock.get().send(JSON.stringify({
                 type: "chat",
                 thread: $scope.thread,
+                id: message.id,
                 from: $scope.name,
                 to: $scope.peer,
                 body: text
@@ -81,6 +88,11 @@ angular.module('main', [])
         $scope.$on("chat." + $scope.thread, function(event, message) {
             console.log("message", message);
             $scope.$apply(function() {
+                if ($scope.messageIds[message.id]) {
+                    console.log("ignoring duplicate message", message);
+                    return;
+                }
+                $scope.messageIds[message.id] = message;
                 $scope.messages.push(message);
             })
         });
