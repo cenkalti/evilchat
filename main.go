@@ -126,7 +126,7 @@ const (
 func sockjsHandler(session sockjs.Session) {
 	var err error
 	defer func() {
-		if err != nil {
+		if err != nil && err != sockjs.ErrSessionNotOpen {
 			log.Print(err)
 			session.Close(3000, err.Error())
 		}
