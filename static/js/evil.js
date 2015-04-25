@@ -86,7 +86,6 @@ angular.module('main', [])
             }));
         };
         $scope.$on("chat." + $scope.thread, function(event, message) {
-            console.log("message", message);
             $scope.$apply(function() {
                 if ($scope.messageIds[message.id]) {
                     console.log("ignoring duplicate message", message);
@@ -107,6 +106,18 @@ angular.module('main', [])
                     event.preventDefault();
                 }
             });
+        }
+    })
+    .directive('scrollBottom', function() {
+        return function(scope, element, attrs) {
+            element = element[0];
+            window.messages = element;
+            element.addEventListener('DOMNodeInserted', function(event) {
+                if (event.target.tagName == "LI") {
+                    console.log("scroll height", element.scrollHeight);
+                    element.scrollTop = element.scrollHeight;
+                }
+            }, false);
         }
     })
     .factory('sock', function($rootScope) {
