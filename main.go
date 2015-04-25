@@ -65,7 +65,7 @@ func initAMQP() {
 
 var config struct {
 	Port string `env:"PORT" default:"8080"`
-	AMQP string `env:"AMQP" default:"amqp://guest:guest@localhost:5672/"`
+	AMQP string `env:"CLOUDAMQP_URL" default:"amqp://guest:guest@localhost:5672/"`
 }
 
 func main() {
