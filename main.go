@@ -3,16 +3,23 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 
+	"github.com/cenkalti/envconfig"
 	"github.com/streadway/amqp"
 	"gopkg.in/igm/sockjs-go.v2/sockjs"
 )
 
-const messagesExchange = "messages"
+var dev = flag.Bool("dev", false, "use development config")
+
+const (
+	chatExchange     = "chat"
+	presenceExchange = "presence"
+)
 
 var conn *amqp.Connection
 
@@ -20,7 +27,7 @@ func initAMQP() {
 	var err error
 	// TODO use redialer
 	// TODO get URI from env var
-	conn, err = amqp.Dial("amqp://guest:guest@localhost:5672/")
+	conn, err = amqp.Dial(config.AMQP)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -31,8 +38,21 @@ func initAMQP() {
 	defer ch.Close()
 
 	err = ch.ExchangeDeclare(
-		messagesExchange, // name of the exchange
-		"direct",         // type
+		chatExchange, // name of the exchange
+		"direct",     // type
+		true,         // durable
+		false,        // delete when complete
+		false,        // internal
+		false,        // noWait
+		nil,          // arguments
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = ch.ExchangeDeclare(
+		presenceExchange, // name of the exchange
+		"fanout",         // type
 		true,             // durable
 		false,            // delete when complete
 		false,            // internal
@@ -44,7 +64,19 @@ func initAMQP() {
 	}
 }
 
+var config struct {
+	Port string `env:"PORT" default:"8080"`
+	AMQP string `env:"AMQP" default:"amqp://guest:guest@localhost:5672/"`
+}
+
 func main() {
+	flag.Parse()
+
+	err := envconfig.Process(&config, !*dev)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	initAMQP()
 
 	fs := http.StripPrefix("/static", http.FileServer(http.Dir("static")))
@@ -61,8 +93,9 @@ func main() {
 type MessageType string
 
 const (
-	TypeLogin MessageType = "login"
-	TypeChat              = "chat"
+	TypeLogin    MessageType = "login"
+	TypeChat                 = "chat"
+	TypePresence             = "presence"
 )
 
 type LoginMessage struct {
@@ -75,6 +108,17 @@ type ChatMessage struct {
 	Body   string
 	Thread string
 }
+
+type PresenceMessage struct {
+	Status string
+}
+
+type PresenceStatus string
+
+const (
+	StatusOnline  PresenceStatus = "online"
+	StatusOffline                = "offline"
+)
 
 func sockjsHandler(session sockjs.Session) {
 	var err error
@@ -161,7 +205,7 @@ func sockjsHandler(session sockjs.Session) {
 			err = ch.QueueBind(
 				queue.Name,        // name of the queue
 				loginMessage.Name, // bindingKey
-				messagesExchange,  // sourceExchange
+				chatExchange,      // sourceExchange
 				false,             // noWait
 				nil,               // arguments
 			)
@@ -185,10 +229,10 @@ func sockjsHandler(session sockjs.Session) {
 		case TypeChat:
 			fmt.Printf("--- sending message: %s\n", sockjsMessage)
 			err = ch.Publish(
-				messagesExchange, // publish to an exchange
-				chatMessage.To,   // routing to 0 or more queues
-				false,            // mandatory
-				false,            // immediate
+				chatExchange,   // publish to an exchange
+				chatMessage.To, // routing to 0 or more queues
+				false,          // mandatory
+				false,          // immediate
 				amqp.Publishing{
 					ContentType:  "application/json",
 					Body:         []byte(sockjsMessage),
