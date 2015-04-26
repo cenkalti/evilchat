@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/cenkalti/envconfig"
 	"github.com/streadway/amqp"
@@ -41,13 +42,13 @@ func initAMQP() {
 	if err = exchangeDeclare(ch, chatExchange, "direct"); err != nil {
 		log.Fatal(err)
 	}
-	if err = exchangeDeclare(ch, probeExchange, "fanout"); err != nil {
+	if err = exchangeDeclare(ch, probeExchange, "direct"); err != nil {
 		log.Fatal(err)
 	}
 	if err = exchangeDeclare(ch, probeReplyExchange, "direct"); err != nil {
 		log.Fatal(err)
 	}
-	if err = exchangeDeclare(ch, presenceExchange, "fanout"); err != nil {
+	if err = exchangeDeclare(ch, presenceExchange, "direct"); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -65,7 +66,7 @@ func main() {
 
 	fs := http.StripPrefix("/static", http.FileServer(http.Dir("static")))
 	http.HandleFunc("/static/", func(w http.ResponseWriter, r *http.Request) { fs.ServeHTTP(w, r) })
-	http.Handle("/sockjs/", sockjs.NewHandler("/sockjs/sock", sockjs.DefaultOptions, handleSocket))
+	http.Handle("/sockjs/", sockjsHandlerWithRequest("/sockjs/sock", sockjs.DefaultOptions, handleSocket))
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "index.html")
 	})
@@ -73,6 +74,16 @@ func main() {
 	if err := http.ListenAndServe(":"+config.Port, nil); err != nil {
 		log.Fatal(err)
 	}
+}
+
+// sockjsHandlerWithRequest is a wrapper around the sockjs.Handler that
+// includes a *http.Request context.
+func sockjsHandlerWithRequest(prefix string, opts sockjs.Options, handleFunc func(sockjs.Session, *http.Request)) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		sockjs.NewHandler(prefix, opts, func(session sockjs.Session) {
+			handleFunc(session, r)
+		}).ServeHTTP(w, r)
+	})
 }
 
 // AMQP functions with some defaults.
@@ -155,12 +166,14 @@ func logError(errp *error) {
 	}
 }
 
-func handleSocket(session sockjs.Session) {
+func handleSocket(session sockjs.Session, r *http.Request) {
 	var err error
 	defer logError(&err)
 
 	var ch *amqp.Channel
 	var loggedIn bool
+
+	team := strings.SplitN(strings.SplitN(r.Host, ".", 2)[0], ":", 2)[0] // sub-domain part
 
 	for {
 		// Read a single message from socket.
@@ -234,30 +247,30 @@ func handleSocket(session sockjs.Session) {
 				return
 			}
 
-			if err = queueBind(ch, queue.Name, "", probeExchange); err != nil {
+			if err = queueBind(ch, queue.Name, team, probeExchange); err != nil {
 				return
 			}
-			if err = queueBind(ch, queue.Name, loginMessage.Name, probeReplyExchange); err != nil {
+			if err = queueBind(ch, queue.Name, team+"."+loginMessage.Name, probeReplyExchange); err != nil {
 				return
 			}
-			if err = queueBind(ch, queue.Name, "", presenceExchange); err != nil {
+			if err = queueBind(ch, queue.Name, team, presenceExchange); err != nil {
 				return
 			}
-			if err = queueBind(ch, queue.Name, loginMessage.Name, chatExchange); err != nil {
+			if err = queueBind(ch, queue.Name, team+"."+loginMessage.Name, chatExchange); err != nil {
 				return
 			}
-			err = publish(ch, presenceExchange, "", nil, amqp.Table{
+			err = publish(ch, presenceExchange, team, nil, amqp.Table{
 				"name":   loginMessage.Name,
 				"status": string(StatusOnline),
 			})
 			if err != nil {
 				return
 			}
-			defer publish(ch, presenceExchange, "", nil, amqp.Table{
+			defer publish(ch, presenceExchange, team, nil, amqp.Table{
 				"name":   loginMessage.Name,
 				"status": string(StatusOffline),
 			})
-			err = publish(ch, probeExchange, "", nil, amqp.Table{
+			err = publish(ch, probeExchange, team, nil, amqp.Table{
 				"from": loginMessage.Name,
 			})
 			if err != nil {
@@ -277,10 +290,10 @@ func handleSocket(session sockjs.Session) {
 				return
 			}
 
-			go handleQueue(deliveries, session, ch, loginMessage.Name)
+			go handleQueue(deliveries, session, ch, team, loginMessage.Name)
 		case TypeChat:
 			fmt.Printf("--- sending message: %s\n", sockjsMessage)
-			err = publish(ch, chatExchange, chatMessage.To, []byte(sockjsMessage), nil)
+			err = publish(ch, chatExchange, team+"."+chatMessage.To, []byte(sockjsMessage), nil)
 			if err != nil {
 				return
 			}
@@ -290,7 +303,7 @@ func handleSocket(session sockjs.Session) {
 	}
 }
 
-func handleQueue(deliveries <-chan amqp.Delivery, session sockjs.Session, ch *amqp.Channel, name string) {
+func handleQueue(deliveries <-chan amqp.Delivery, session sockjs.Session, ch *amqp.Channel, team, name string) {
 	var err error
 	defer logError(&err)
 
@@ -298,7 +311,7 @@ func handleQueue(deliveries <-chan amqp.Delivery, session sockjs.Session, ch *am
 		fmt.Printf("--- received delivery from exchange: %s\n", d.Exchange)
 		switch d.Exchange {
 		case probeExchange:
-			err = publish(ch, probeReplyExchange, d.Headers["from"].(string), nil, amqp.Table{
+			err = publish(ch, probeReplyExchange, team+"."+d.Headers["from"].(string), nil, amqp.Table{
 				"name":   name,
 				"status": string(StatusOnline),
 			})
