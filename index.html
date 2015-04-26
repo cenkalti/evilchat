@@ -19,17 +19,17 @@
     <div id="sidebar">
         <ul id="contacts">
             <li class="contact" ng-repeat="contact in contacts">
-                <a href="#" ng-click="newWindow(contact)">{{contact.name}}</a>
+                <a href="javascript:;" ng-click="newWindow(contact)">{{contact.name}}</a>
             </li>
         </ul>
-        <a href="javascript:;" ng-click="login()">Login</a>
-        <a href="javascript:;" ng-click="logout()">Logout</a>
+        <a href="javascript:;" ng-hide="loggedIn" ng-click="login()">Login</a>
+        <a href="javascript:;" ng-show="loggedIn" ng-click="logout()">Logout</a>
     </div>
     <div id="windows">
         <div class="window" ng-controller="WindowController" ng-repeat="window in windows">
             <h4>
                 {{contact.name}}
-                <a href="#" ng-click="closeWindow(thread)" class="close">&times;</a>
+                <a href="javascript:;" ng-click="closeWindow(thread)" class="close">&times;</a>
             </h4>
             <ul class="messages" x-scroll-bottom>
                 <li ng-repeat="message in messages">
