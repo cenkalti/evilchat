@@ -24,6 +24,45 @@ const (
 
 var conn *amqp.Connection
 
+// AMQP functions with some defaults.
+func exchangeDeclare(ch *amqp.Channel, name, kind string) error {
+	return ch.ExchangeDeclare(
+		name,  // name of the exchange
+		kind,  // type
+		true,  // durable
+		false, // delete when complete
+		false, // internal
+		false, // noWait
+		nil,   // arguments
+	)
+}
+func queueBind(ch *amqp.Channel, queue, routingKey, exchange string) error {
+	return ch.QueueBind(
+		queue,      // name of the queue
+		routingKey, // bindingKey
+		exchange,   // sourceExchange
+		false,      // noWait
+		nil,        // arguments
+	)
+}
+func publish(ch *amqp.Channel, exchange, routingKey string, body []byte, headers amqp.Table) error {
+	p := amqp.Publishing{
+		Headers:      headers,
+		DeliveryMode: amqp.Transient, // 1=non-persistent, 2=persistent
+	}
+	if body != nil {
+		p.ContentType = "application/json"
+		p.Body = body
+	}
+	return ch.Publish(
+		exchange,   // exchange
+		routingKey, // routing key
+		false,      // mandatory
+		false,      // immediate
+		p,
+	)
+}
+
 func initAMQP() {
 	var err error
 	// TODO use redialer
@@ -40,55 +79,16 @@ func initAMQP() {
 	}
 	defer ch.Close()
 
-	err = ch.ExchangeDeclare(
-		chatExchange, // name of the exchange
-		"direct",     // type
-		true,         // durable
-		false,        // delete when complete
-		false,        // internal
-		false,        // noWait
-		nil,          // arguments
-	)
-	if err != nil {
+	if err = exchangeDeclare(ch, chatExchange, "direct"); err != nil {
 		log.Fatal(err)
 	}
-
-	err = ch.ExchangeDeclare(
-		probeExchange, // name of the exchange
-		"fanout",      // type
-		true,          // durable
-		false,         // delete when complete
-		false,         // internal
-		false,         // noWait
-		nil,           // arguments
-	)
-	if err != nil {
+	if err = exchangeDeclare(ch, probeExchange, "fanout"); err != nil {
 		log.Fatal(err)
 	}
-
-	err = ch.ExchangeDeclare(
-		probeReplyExchange, // name of the exchange
-		"direct",           // type
-		true,               // durable
-		false,              // delete when complete
-		false,              // internal
-		false,              // noWait
-		nil,                // arguments
-	)
-	if err != nil {
+	if err = exchangeDeclare(ch, probeReplyExchange, "direct"); err != nil {
 		log.Fatal(err)
 	}
-
-	err = ch.ExchangeDeclare(
-		presenceExchange, // name of the exchange
-		"fanout",         // type
-		true,             // durable
-		false,            // delete when complete
-		false,            // internal
-		false,            // noWait
-		nil,              // arguments
-	)
-	if err != nil {
+	if err = exchangeDeclare(ch, presenceExchange, "fanout"); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -121,20 +121,10 @@ func main() {
 	}
 }
 
-// Client Message Types
-
 type MessageType string
-
-const (
-	TypeLogin    MessageType = "login"
-	TypeChat                 = "chat"
-	TypePresence             = "presence"
-)
-
 type LoginMessage struct {
 	Name string
 }
-
 type ChatMessage struct {
 	ID     string
 	From   string
@@ -142,18 +132,21 @@ type ChatMessage struct {
 	Body   string
 	Thread string
 }
-
 type PresenceMessage struct {
 	Type   MessageType    `json:"type"`
 	Name   string         `json:"name"`
 	Status PresenceStatus `json:"status"`
 }
-
 type PresenceStatus string
 
 const (
 	StatusOnline  PresenceStatus = "online"
 	StatusOffline                = "offline"
+)
+const (
+	TypeLogin    MessageType = "login"
+	TypeChat                 = "chat"
+	TypePresence             = "presence"
 )
 
 func logError(errp *error) {
@@ -241,87 +234,33 @@ func handleSocket(session sockjs.Session) {
 			if err != nil {
 				return
 			}
-			err = ch.QueueBind(
-				queue.Name,    // name of the queue
-				"",            // bindingKey
-				probeExchange, // sourceExchange
-				false,         // noWait
-				nil,           // arguments
-			)
+
+			if err = queueBind(ch, queue.Name, "", probeExchange); err != nil {
+				return
+			}
+			if err = queueBind(ch, queue.Name, loginMessage.Name, probeReplyExchange); err != nil {
+				return
+			}
+			if err = queueBind(ch, queue.Name, "", presenceExchange); err != nil {
+				return
+			}
+			if err = queueBind(ch, queue.Name, loginMessage.Name, chatExchange); err != nil {
+				return
+			}
+			err = publish(ch, presenceExchange, "", nil, amqp.Table{
+				"name":   loginMessage.Name,
+				"status": string(StatusOnline),
+			})
 			if err != nil {
 				return
 			}
-			err = ch.QueueBind(
-				queue.Name,         // name of the queue
-				loginMessage.Name,  // bindingKey
-				probeReplyExchange, // sourceExchange
-				false,              // noWait
-				nil,                // arguments
-			)
-			if err != nil {
-				return
-			}
-			err = ch.QueueBind(
-				queue.Name,       // name of the queue
-				"",               // bindingKey
-				presenceExchange, // sourceExchange
-				false,            // noWait
-				nil,              // arguments
-			)
-			if err != nil {
-				return
-			}
-			err = ch.QueueBind(
-				queue.Name,        // name of the queue
-				loginMessage.Name, // bindingKey
-				chatExchange,      // sourceExchange
-				false,             // noWait
-				nil,               // arguments
-			)
-			if err != nil {
-				return
-			}
-			err = ch.Publish(
-				presenceExchange, // exchange
-				"",               // routing key
-				false,            // mandatory
-				false,            // immediate
-				amqp.Publishing{
-					Headers: amqp.Table{
-						"name":   loginMessage.Name,
-						"status": string(StatusOnline),
-					},
-					DeliveryMode: amqp.Transient, // 1=non-persistent, 2=persistent
-				},
-			)
-			if err != nil {
-				return
-			}
-			defer ch.Publish(
-				presenceExchange, // exchange
-				"",               // routing key
-				false,            // mandatory
-				false,            // immediate
-				amqp.Publishing{
-					Headers: amqp.Table{
-						"name":   loginMessage.Name,
-						"status": string(StatusOffline),
-					},
-					DeliveryMode: amqp.Transient, // 1=non-persistent, 2=persistent
-				},
-			)
-			err = ch.Publish(
-				probeExchange, // exchange
-				"",            // routing key
-				false,         // mandatory
-				false,         // immediate
-				amqp.Publishing{
-					Headers: amqp.Table{
-						"from": loginMessage.Name,
-					},
-					DeliveryMode: amqp.Transient, // 1=non-persistent, 2=persistent
-				},
-			)
+			defer publish(ch, presenceExchange, "", nil, amqp.Table{
+				"name":   loginMessage.Name,
+				"status": string(StatusOffline),
+			})
+			err = publish(ch, probeExchange, "", nil, amqp.Table{
+				"from": loginMessage.Name,
+			})
 			if err != nil {
 				return
 			}
@@ -342,17 +281,7 @@ func handleSocket(session sockjs.Session) {
 			go handleQueue(deliveries, session, ch, loginMessage.Name)
 		case TypeChat:
 			fmt.Printf("--- sending message: %s\n", sockjsMessage)
-			err = ch.Publish(
-				chatExchange,   // exchange
-				chatMessage.To, // routing key
-				false,          // mandatory
-				false,          // immediate
-				amqp.Publishing{
-					ContentType:  "application/json",
-					Body:         []byte(sockjsMessage),
-					DeliveryMode: amqp.Transient, // 1=non-persistent, 2=persistent
-				},
-			)
+			err = publish(ch, chatExchange, chatMessage.To, []byte(sockjsMessage), nil)
 			if err != nil {
 				return
 			}
@@ -370,19 +299,10 @@ func handleQueue(deliveries <-chan amqp.Delivery, session sockjs.Session, ch *am
 		fmt.Printf("--- received delivery from exchange: %s\n", d.Exchange)
 		switch d.Exchange {
 		case probeExchange:
-			err = ch.Publish(
-				probeReplyExchange,         // exchange
-				d.Headers["from"].(string), // routing key
-				false, // mandatory
-				false, // immediate
-				amqp.Publishing{
-					Headers: amqp.Table{
-						"name":   name,
-						"status": string(StatusOnline),
-					},
-					DeliveryMode: amqp.Transient, // 1=non-persistent, 2=persistent
-				},
-			)
+			err = publish(ch, probeReplyExchange, d.Headers["from"].(string), nil, amqp.Table{
+				"name":   name,
+				"status": string(StatusOnline),
+			})
 			if err != nil {
 				return
 			}
