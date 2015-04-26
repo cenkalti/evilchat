@@ -15,11 +15,8 @@ angular.module('main', [])
             $scope.loggedIn = true;
         }
         $scope.logout = function() {
-            $scope.name = null;
-            $scope.loggedIn = false;
             delete localStorage.name;
-            sock.get().close();
-            $scope.contacts = {};
+            location.reload();
         }
         $scope.newWindow = function(contact) {
             var w = {

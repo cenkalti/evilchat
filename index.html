@@ -17,7 +17,7 @@
 
 <body ng-controller="MainController">
     <div id="sidebar">
-        <ul id="contacts">
+        <ul id="contacts" ng-show="loggedIn">
             <li class="contact" ng-repeat="contact in contacts">
                 <a href="javascript:;" ng-click="newWindow(contact)">{{contact.name}}</a>
             </li>
