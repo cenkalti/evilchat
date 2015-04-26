@@ -37,7 +37,6 @@ body {
 
 .contact {
     white-space: nowrap;
-    text-overflow: ellipsis;
 }
 
 .window {
@@ -46,12 +45,18 @@ body {
     margin-right: 20px;
 }
 
-.window .messages {
+.messages {
     height: 220px;
     overflow-y: auto;
     overflow-wrap: break-word;
     border: 1px solid rgb(238, 238, 238);
     margin-bottom: 20px;
+    list-style-type: initial;
+    padding: 5px;
+}
+
+.message {
+    margin-bottom: 0;
 }
 
 .window .input-send {
