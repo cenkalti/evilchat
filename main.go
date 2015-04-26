@@ -15,14 +15,65 @@ import (
 
 var dev = flag.Bool("dev", false, "use development config")
 
-const (
-	chatExchange       = "chat"
-	probeExchange      = "probe"
-	probeReplyExchange = "probeReply"
-	presenceExchange   = "presence"
-)
-
 var conn *amqp.Connection
+
+var config struct {
+	Port string `env:"PORT" default:"8080"`
+	AMQP string `env:"CLOUDAMQP_URL" default:"amqp://guest:guest@localhost:5672/"`
+}
+
+func initAMQP() {
+	var err error
+	// TODO use redialer
+	log.Print("Connecting to AMQP...")
+	conn, err = amqp.Dial(config.AMQP)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Print("Done.")
+
+	ch, err := conn.Channel()
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer ch.Close()
+
+	if err = exchangeDeclare(ch, chatExchange, "direct"); err != nil {
+		log.Fatal(err)
+	}
+	if err = exchangeDeclare(ch, probeExchange, "fanout"); err != nil {
+		log.Fatal(err)
+	}
+	if err = exchangeDeclare(ch, probeReplyExchange, "direct"); err != nil {
+		log.Fatal(err)
+	}
+	if err = exchangeDeclare(ch, presenceExchange, "fanout"); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func main() {
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+	flag.Parse()
+
+	err := envconfig.Process(&config, !*dev)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	initAMQP()
+
+	fs := http.StripPrefix("/static", http.FileServer(http.Dir("static")))
+	http.HandleFunc("/static/", func(w http.ResponseWriter, r *http.Request) { fs.ServeHTTP(w, r) })
+	http.Handle("/sockjs/", sockjs.NewHandler("/sockjs/sock", sockjs.DefaultOptions, handleSocket))
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "index.html")
+	})
+	log.Printf("Listening port %s...", config.Port)
+	if err := http.ListenAndServe(":"+config.Port, nil); err != nil {
+		log.Fatal(err)
+	}
+}
 
 // AMQP functions with some defaults.
 func exchangeDeclare(ch *amqp.Channel, name, kind string) error {
@@ -63,64 +114,6 @@ func publish(ch *amqp.Channel, exchange, routingKey string, body []byte, headers
 	)
 }
 
-func initAMQP() {
-	var err error
-	// TODO use redialer
-	log.Print("Connecting to AMQP...")
-	conn, err = amqp.Dial(config.AMQP)
-	if err != nil {
-		log.Fatal(err)
-	}
-	log.Print("Done.")
-
-	ch, err := conn.Channel()
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer ch.Close()
-
-	if err = exchangeDeclare(ch, chatExchange, "direct"); err != nil {
-		log.Fatal(err)
-	}
-	if err = exchangeDeclare(ch, probeExchange, "fanout"); err != nil {
-		log.Fatal(err)
-	}
-	if err = exchangeDeclare(ch, probeReplyExchange, "direct"); err != nil {
-		log.Fatal(err)
-	}
-	if err = exchangeDeclare(ch, presenceExchange, "fanout"); err != nil {
-		log.Fatal(err)
-	}
-}
-
-var config struct {
-	Port string `env:"PORT" default:"8080"`
-	AMQP string `env:"CLOUDAMQP_URL" default:"amqp://guest:guest@localhost:5672/"`
-}
-
-func main() {
-	log.SetFlags(log.LstdFlags | log.Lshortfile)
-	flag.Parse()
-
-	err := envconfig.Process(&config, !*dev)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	initAMQP()
-
-	fs := http.StripPrefix("/static", http.FileServer(http.Dir("static")))
-	http.HandleFunc("/static/", func(w http.ResponseWriter, r *http.Request) { fs.ServeHTTP(w, r) })
-	http.Handle("/sockjs/", sockjs.NewHandler("/sockjs/sock", sockjs.DefaultOptions, handleSocket))
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "index.html")
-	})
-	log.Printf("Listening port %s...", config.Port)
-	if err := http.ListenAndServe(":"+config.Port, nil); err != nil {
-		log.Fatal(err)
-	}
-}
-
 type MessageType string
 type LoginMessage struct {
 	Name string
@@ -147,6 +140,12 @@ const (
 	TypeLogin    MessageType = "login"
 	TypeChat                 = "chat"
 	TypePresence             = "presence"
+)
+const (
+	chatExchange       = "chat"
+	probeExchange      = "probe"
+	probeReplyExchange = "probeReply"
+	presenceExchange   = "presence"
 )
 
 func logError(errp *error) {
