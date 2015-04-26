@@ -156,14 +156,16 @@ const (
 	StatusOffline                = "offline"
 )
 
+func logError(errp *error) {
+	err := *errp
+	if err != nil && err != sockjs.ErrSessionNotOpen {
+		log.Print(err)
+	}
+}
+
 func handleSocket(session sockjs.Session) {
 	var err error
-	defer func() {
-		if err != nil && err != sockjs.ErrSessionNotOpen {
-			log.Print(err)
-			session.Close(3000, err.Error())
-		}
-	}()
+	defer logError(&err)
 
 	var ch *amqp.Channel
 	var loggedIn bool
@@ -295,6 +297,19 @@ func handleSocket(session sockjs.Session) {
 			if err != nil {
 				return
 			}
+			defer ch.Publish(
+				presenceExchange, // exchange
+				"",               // routing key
+				false,            // mandatory
+				false,            // immediate
+				amqp.Publishing{
+					Headers: amqp.Table{
+						"name":   loginMessage.Name,
+						"status": string(StatusOffline),
+					},
+					DeliveryMode: amqp.Transient, // 1=non-persistent, 2=persistent
+				},
+			)
 			err = ch.Publish(
 				probeExchange, // exchange
 				"",            // routing key
@@ -348,25 +363,14 @@ func handleSocket(session sockjs.Session) {
 }
 
 func handleQueue(deliveries <-chan amqp.Delivery, session sockjs.Session, ch *amqp.Channel, name string) {
-	defer ch.Close()
-	defer ch.Publish(
-		presenceExchange, // exchange
-		"",               // routing key
-		false,            // mandatory
-		false,            // immediate
-		amqp.Publishing{
-			Headers: amqp.Table{
-				"name":   name,
-				"status": string(StatusOffline),
-			},
-			DeliveryMode: amqp.Transient, // 1=non-persistent, 2=persistent
-		},
-	)
+	var err error
+	defer logError(&err)
+
 	for d := range deliveries {
 		fmt.Printf("--- received delivery from exchange: %s\n", d.Exchange)
 		switch d.Exchange {
 		case probeExchange:
-			err := ch.Publish(
+			err = ch.Publish(
 				probeReplyExchange,         // exchange
 				d.Headers["from"].(string), // routing key
 				false, // mandatory
@@ -380,7 +384,6 @@ func handleQueue(deliveries <-chan amqp.Delivery, session sockjs.Session, ch *am
 				},
 			)
 			if err != nil {
-				log.Print(err)
 				return
 			}
 		case probeReplyExchange:
@@ -391,20 +394,18 @@ func handleQueue(deliveries <-chan amqp.Delivery, session sockjs.Session, ch *am
 				Name:   d.Headers["name"].(string),
 				Status: PresenceStatus(d.Headers["status"].(string)),
 			}
-			b, err := json.Marshal(&msg)
+			var b []byte
+			b, err = json.Marshal(&msg)
 			if err != nil {
-				log.Print(err)
 				return
 			}
 			err = session.Send(string(b))
 			if err != nil {
-				log.Print(err)
 				return
 			}
 		case chatExchange:
-			err := session.Send(string(d.Body))
+			err = session.Send(string(d.Body))
 			if err != nil {
-				log.Print(err)
 				return
 			}
 		default:
