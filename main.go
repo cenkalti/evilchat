@@ -66,6 +66,7 @@ func main() {
 
 	fs := http.StripPrefix("/static", http.FileServer(http.Dir("static")))
 	http.HandleFunc("/static/", func(w http.ResponseWriter, r *http.Request) { fs.ServeHTTP(w, r) })
+	http.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) { http.ServeFile(w, r, "favicon.ico") })
 	http.Handle("/sockjs/", sockjsHandlerWithRequest("/sockjs/sock", sockjs.DefaultOptions, handleSocket))
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "index.html")
