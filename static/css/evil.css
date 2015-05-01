@@ -1,10 +1,17 @@
-body {
+html {
+    box-sizing: border-box;
     overflow-y: scroll;
+}
+
+*,
+*:before,
+*:after {
+    box-sizing: inherit;
 }
 
 #sidebar {
     position: fixed;
-    width: 100px;
+    width: 150px;
     height: 100%;
     padding: 20px;
     overflow: hidden;
@@ -14,8 +21,8 @@ body {
 
 #windows {
     float: left;
-    margin-left: 141px;
-    width: calc(100% - 161px);
+    margin-left: 150px;
+    width: calc(100% - 150px);
     height: 100%;
     padding: 20px 0 0 20px;
 }
