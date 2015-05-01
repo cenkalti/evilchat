@@ -55,6 +55,7 @@ body {
 
 .message {
     margin-bottom: 0;
+    list-style: none;
 }
 
 .window .input-send {

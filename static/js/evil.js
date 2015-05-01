@@ -80,19 +80,16 @@ angular.module('main', [])
             if (!text) return;
             $scope.text = "";
             var message = {
+                type: "chat",
+                thread: $scope.thread,
                 id: guid(),
+                from: $scope.name,
+                to: $scope.contact.name,
                 body: text
             };
             $scope.messageIds[message.id] = message;
             $scope.messages.push(message);
-            sock.get().send(JSON.stringify({
-                type: "chat",
-                thread: $scope.thread,
-                id: message.id,
-                from: $scope.name,
-                to: $scope.contact.name,
-                body: text
-            }));
+            sock.get().send(JSON.stringify(message));
         };
         $scope.$on("chat." + $scope.thread, function(event, message) {
             $scope.$apply(function() {

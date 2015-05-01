@@ -33,7 +33,7 @@
             </h4>
             <ul class="messages" x-scroll-bottom x-no-scroll-parent>
                 <li class="message" ng-repeat="message in messages">
-                    {{message.body}}
+                    {{message.from}}: {{message.body}}
                 </li>
             </ul>
             <input class="input-send" ng-model="text" x-enter="send()">
