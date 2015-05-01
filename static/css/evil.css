@@ -15,8 +15,9 @@ body {
 #windows {
     float: left;
     margin-left: 141px;
-    width: calc(100% - 141px);
+    width: calc(100% - 161px);
     height: 100%;
+    padding: 20px 0 0 20px;
 }
 
 #contacts {
@@ -28,25 +29,24 @@ body {
 }
 
 .window {
-    width: calc((100% - 80px) / 3);
+    width: calc((100% - 60px) / 3);
     float: left;
-    margin: 20px 0 0 20px;
+    margin: 0 20px 20px 0;
 }
 
 .messages {
-    height: calc(8*1.5em + 2*5px);
+    height: calc(8.5*1.5em + 2*5px);
     overflow-y: scroll;
     overflow-wrap: break-word;
     border: 1px solid rgb(238, 238, 238);
     border-right: 0;
     margin-bottom: 20px;
-    list-style-type: initial;
     padding: 5px;
 }
 
 .message {
     margin-bottom: 0;
-    list-style: none;
+    list-style-type: none;
 }
 
 .window .input-send {
