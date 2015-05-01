@@ -15,8 +15,8 @@ body {
 #sidebar {
     position: fixed;
     width: 100px;
-    padding: 20px;
     height: 100%;
+    padding: 20px;
     overflow: hidden;
     background-color: #f5f5f5;
     border-right: 1px solid #eee;
@@ -24,10 +24,8 @@ body {
 
 #windows {
     float: left;
-    margin-left: 140px;
-    width: 1105px;
-    padding: 20px;
-    padding-right: 0;
+    margin-left: 141px;
+    width: calc(100% - 141px);
     height: 100%;
 }
 
@@ -42,7 +40,7 @@ body {
 .window {
     width: 348px;
     float: left;
-    margin: 0 20px 20px 0;
+    margin: 20px 0 0 20px;
 }
 
 .messages {
