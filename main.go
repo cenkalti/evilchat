@@ -8,30 +8,40 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/cenkalti/envconfig"
+	"github.com/cenkalti/redialer/amqpredialer"
 	"github.com/streadway/amqp"
 	"gopkg.in/igm/sockjs-go.v2/sockjs"
 )
 
 var dev = flag.Bool("dev", false, "use development config")
 
-var conn *amqp.Connection
+var rabbit *amqpredialer.AMQPRedialer
 
 var config struct {
 	Port string `env:"PORT" default:"8080"`
 	AMQP string `env:"CLOUDAMQP_URL" default:"amqp://guest:guest@localhost:5672/"`
 }
 
-func initAMQP() {
-	var err error
-	// TODO use redialer
-	log.Print("Connecting to AMQP...")
-	conn, err = amqp.Dial(config.AMQP)
+func main() {
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+	flag.Parse()
+
+	err := envconfig.Process(&config, !*dev)
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Print("Done.")
+
+	rabbit, err = amqpredialer.New(config.AMQP)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	go rabbit.Run()
+
+	conn := <-rabbit.Conn()
 
 	ch, err := conn.Channel()
 	if err != nil {
@@ -51,18 +61,6 @@ func initAMQP() {
 	if err = exchangeDeclare(ch, presenceExchange, "direct"); err != nil {
 		log.Fatal(err)
 	}
-}
-
-func main() {
-	log.SetFlags(log.LstdFlags | log.Lshortfile)
-	flag.Parse()
-
-	err := envconfig.Process(&config, !*dev)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	initAMQP()
 
 	fs := http.StripPrefix("/static", http.FileServer(http.Dir("static")))
 	http.HandleFunc("/static/", func(w http.ResponseWriter, r *http.Request) { fs.ServeHTTP(w, r) })
@@ -228,6 +226,14 @@ func handleSocket(session sockjs.Session, r *http.Request) {
 		switch message.Type {
 		case TypeLogin:
 			loggedIn = true
+
+			var conn *amqp.Connection
+			select {
+			case conn = <-rabbit.Conn():
+			case <-time.After(time.Second):
+				err = errors.New("cannot connect to backend")
+				return
+			}
 
 			ch, err = conn.Channel()
 			if err != nil {
