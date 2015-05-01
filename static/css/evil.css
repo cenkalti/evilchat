@@ -38,7 +38,7 @@ body {
 }
 
 .window {
-    width: 348px;
+    width: calc((100% - 80px) / 3);
     float: left;
     margin: 20px 0 0 20px;
 }
