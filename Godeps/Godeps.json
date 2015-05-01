@@ -7,6 +7,10 @@
 			"Rev": "a0c9c58afe16be646314224e2b435236643715c3"
 		},
 		{
+			"ImportPath": "github.com/cenkalti/redialer",
+			"Rev": "2fa66e8611974b0e8d33469ad653e78cf9fce472"
+		},
+		{
 			"ImportPath": "github.com/gorilla/websocket",
 			"Rev": "ecff5aabe41f13b4cdf897e3c0c9bbccbe552a29"
 		},
