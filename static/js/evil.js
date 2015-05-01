@@ -117,6 +117,14 @@ angular.module('main', [])
             });
         }
     })
+    .directive('noScrollParent', function() {
+        return function(scope, element, attrs) {
+            element[0].onmousewheel = function(e) {
+                e.preventDefault();
+                this.scrollTop += (e.wheelDelta * -1);
+            }
+        }
+    })
     .directive('scrollBottom', function() {
         return function(scope, element, attrs) {
             element = element[0];

@@ -42,11 +42,11 @@ body {
 .window {
     width: 348px;
     float: left;
-    margin-right: 20px;
+    margin: 0 20px 20px 0;
 }
 
 .messages {
-    height: 220px;
+    height: 205px;
     overflow-y: auto;
     overflow-wrap: break-word;
     border: 1px solid rgb(238, 238, 238);
@@ -63,6 +63,7 @@ body {
     width: 100%;
     border: 1px solid rgb(238, 238, 238);
     padding: 0;
+    margin-bottom: 0;
 }
 
 .close {
