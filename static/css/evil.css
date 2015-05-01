@@ -36,7 +36,6 @@ html {
 }
 
 .window {
-    width: calc((100% - 60px) / 3);
     float: left;
     margin: 0 20px 20px 0;
 }
@@ -79,4 +78,34 @@ html {
     opacity: 0.4;
     filter: alpha(opacity=40);
     cursor: pointer;
+}
+
+@media (min-width: 400px) {
+    .window {
+        width: calc((100% - 1*20px) / 1);
+    }
+}
+
+@media (min-width: 550px) {
+    .window {
+        width: calc((100% - 1*20px) / 1);
+    }
+}
+
+@media (min-width: 750px) {
+    .window {
+        width: calc((100% - 2*20px) / 2);
+    }
+}
+
+@media (min-width: 1000px) {
+    .window {
+        width: calc((100% - 3*20px) / 3);
+    }
+}
+
+@media (min-width: 1200px) {
+    .window {
+        width: calc((100% - 4*20px) / 4);
+    }
 }
