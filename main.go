@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -171,10 +172,12 @@ const (
 	presenceExchange   = "presence"
 )
 
+var logger = log.New(os.Stderr, "", log.LstdFlags|log.Lshortfile)
+
 func logError(errp *error) {
 	err := *errp
 	if err != nil && err != sockjs.ErrSessionNotOpen {
-		log.Print(err)
+		logger.Output(2, err.Error())
 	}
 }
 
