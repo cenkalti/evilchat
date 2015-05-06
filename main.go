@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -12,17 +13,22 @@ import (
 
 	"github.com/cenkalti/envconfig"
 	"github.com/cenkalti/redialer/amqpredialer"
+	_ "github.com/lib/pq"
 	"github.com/streadway/amqp"
 	"gopkg.in/igm/sockjs-go.v2/sockjs"
 )
 
 var dev = flag.Bool("dev", false, "use development config")
 
-var rabbit *amqpredialer.AMQPRedialer
+var (
+	rabbit *amqpredialer.AMQPRedialer
+	db     *sql.DB
+)
 
 var config struct {
-	Port string `env:"PORT" default:"8080"`
-	AMQP string `env:"CLOUDAMQP_URL" default:"amqp://guest:guest@localhost:5672/"`
+	Port        string `env:"PORT" default:"8080"`
+	AMQP        string `env:"CLOUDAMQP_URL" default:"amqp://guest:guest@localhost:5672/"`
+	PostgresURL string `env:"DATABASE_URL" default:"postgres://localhost/?sslmode=disable&dbname=evilchat"`
 }
 
 func main() {
@@ -30,6 +36,11 @@ func main() {
 	flag.Parse()
 
 	err := envconfig.Process(&config, !*dev)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	db, err = sql.Open("postgres", config.PostgresURL)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -47,8 +58,6 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer ch.Close()
-
 	if err = exchangeDeclare(ch, chatExchange, "direct"); err != nil {
 		log.Fatal(err)
 	}
@@ -59,6 +68,10 @@ func main() {
 		log.Fatal(err)
 	}
 	if err = exchangeDeclare(ch, presenceExchange, "direct"); err != nil {
+		log.Fatal(err)
+	}
+	err = ch.Close()
+	if err != nil {
 		log.Fatal(err)
 	}
 
