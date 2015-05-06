@@ -15,6 +15,10 @@
 			"Rev": "ecff5aabe41f13b4cdf897e3c0c9bbccbe552a29"
 		},
 		{
+			"ImportPath": "github.com/lib/pq",
+			"Rev": "dc911180b321e9b7e08aa94f20939ef0109b9b24"
+		},
+		{
 			"ImportPath": "github.com/streadway/amqp",
 			"Rev": "6a378341a305bfbc252e8a6638f16cf443221997"
 		},
