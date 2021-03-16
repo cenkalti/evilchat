@@ -1,0 +1,14 @@
+github.com/cenkalti/envconfig v0.0.0-20150425065256-a0c9c58afe16 h1:BDnjjWWWW7G9GAgFHnJR3FlP2sjRLKxaBnVe8pvVjos=
+github.com/cenkalti/envconfig v0.0.0-20150425065256-a0c9c58afe16/go.mod h1:7pkx+C0x+7vndm84+0vQ3qtp1hWNnqz7YuR+ujhBr2M=
+github.com/cenkalti/redialer v0.0.0-20150311134418-2fa66e861197 h1:/x7lnKrzx6o4rOv+loHAbTYA/vWD+bjZ2IjtRCX0U4w=
+github.com/cenkalti/redialer v0.0.0-20150311134418-2fa66e861197/go.mod h1:nXu1jeCfhrGmwKC28vanvftPh/36SC9k2WSWRxQD/tI=
+github.com/gorilla/websocket v0.0.0-20150418105233-ecff5aabe41f h1:kfUodzuUY+kVUdDKUDOIjNGVoHZiMPLQgUctpETmSH4=
+github.com/gorilla/websocket v0.0.0-20150418105233-ecff5aabe41f/go.mod h1:E7qHFY5m1UJ88s3WnNqhKjPHQ0heANvMoAMk2YaljkQ=
+github.com/igm/sockjs-go v3.0.0+incompatible h1:4w5ztbp2brVLJYz+o3u0m7+zmuup6eZ/Fr1ehbJOsBo=
+github.com/igm/sockjs-go v3.0.0+incompatible/go.mod h1:Yu6pvqjNniWNJe07LPObeCG6R77Qc97C6Kss0roF8tU=
+github.com/lib/pq v0.0.0-20141214011340-dc911180b321 h1:LOtuBj0BGSLHAyGG5RgDmyfcagjcNMJlqz74/k/E3v4=
+github.com/lib/pq v0.0.0-20141214011340-dc911180b321/go.mod h1:5WUZQaWbwv1U+lTReE5YruASi9Al49XbQIvNi/34Woo=
+github.com/streadway/amqp v0.0.0-20150320153439-6a378341a305 h1:z3GclFCkhJNYMNjszntIS2ZrSQxFacOhd0GXdfHHoOY=
+github.com/streadway/amqp v0.0.0-20150320153439-6a378341a305/go.mod h1:1WNBiOZtZQLpVAyu0iTduoJL9hEsMloAK5XWrtW0xdY=
+gopkg.in/igm/sockjs-go.v2 v2.0.0-20150227125845-50b75e1901c1 h1:7aFmQB+9qSgvUNueKkLt2imyuqQU48MStmaDuTporr8=
+gopkg.in/igm/sockjs-go.v2 v2.0.0-20150227125845-50b75e1901c1/go.mod h1:xvdpHZ3OpjP0TzQzl+174DglrrnYZKVd6qHPIX20Z1Q=
