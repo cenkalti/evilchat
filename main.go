@@ -13,10 +13,10 @@ import (
 	"time"
 
 	"github.com/cenkalti/redialer/amqpredialer"
+	"github.com/igm/sockjs-go/v3/sockjs"
 	"github.com/kelseyhightower/envconfig"
 	_ "github.com/lib/pq"
 	"github.com/streadway/amqp"
-	"gopkg.in/igm/sockjs-go.v2/sockjs"
 )
 
 var (
