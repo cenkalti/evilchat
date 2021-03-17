@@ -12,14 +12,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cenkalti/envconfig"
 	"github.com/cenkalti/redialer/amqpredialer"
+	"github.com/kelseyhightower/envconfig"
 	_ "github.com/lib/pq"
 	"github.com/streadway/amqp"
 	"gopkg.in/igm/sockjs-go.v2/sockjs"
 )
-
-var dev = flag.Bool("dev", false, "use development config")
 
 var (
 	rabbit *amqpredialer.AMQPRedialer
@@ -27,16 +25,16 @@ var (
 )
 
 var config struct {
-	Port        string `env:"PORT" default:"8080"`
-	AMQP        string `env:"CLOUDAMQP_URL" default:"amqp://guest:guest@localhost:5672/"`
-	PostgresURL string `env:"DATABASE_URL" default:"postgres://localhost/?sslmode=disable&dbname=evilchat"`
+	Port        string `envconfig:"PORT" default:"8080"`
+	AMQP        string `envconfig:"CLOUDAMQP_URL" default:"amqp://guest:guest@localhost:5672/"`
+	PostgresURL string `envconfig:"DATABASE_URL" default:"postgres://localhost/?sslmode=disable&dbname=evilchat"`
 }
 
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	flag.Parse()
 
-	err := envconfig.Process(&config, !*dev)
+	err := envconfig.Process("", &config)
 	if err != nil {
 		log.Fatal(err)
 	}
