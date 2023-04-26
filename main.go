@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -15,19 +14,14 @@ import (
 	"github.com/cenkalti/redialer/amqpredialer"
 	"github.com/igm/sockjs-go/v3/sockjs"
 	"github.com/kelseyhightower/envconfig"
-	_ "github.com/lib/pq"
 	"github.com/streadway/amqp"
 )
 
-var (
-	rabbit *amqpredialer.AMQPRedialer
-	db     *sql.DB
-)
+var rabbit *amqpredialer.AMQPRedialer
 
 var config struct {
-	Port        string `envconfig:"PORT" default:"8080"`
-	AMQP        string `envconfig:"CLOUDAMQP_URL" default:"amqp://guest:guest@localhost:5672/"`
-	PostgresURL string `envconfig:"DATABASE_URL" default:"postgres://localhost/?sslmode=disable&dbname=evilchat"`
+	Port string `envconfig:"PORT" default:"8080"`
+	AMQP string `envconfig:"AMQP_URL" default:"amqp://guest:guest@localhost:5672/"`
 }
 
 func main() {
@@ -35,11 +29,6 @@ func main() {
 	flag.Parse()
 
 	err := envconfig.Process("", &config)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	db, err = sql.Open("postgres", config.PostgresURL)
 	if err != nil {
 		log.Fatal(err)
 	}
